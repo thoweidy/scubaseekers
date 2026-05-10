@@ -28,7 +28,7 @@ const query = `
 async function main() {
   console.log(`\nChecking low-stock products on ${STORE} (threshold: ${LOW_STOCK_THRESHOLD})...\n`);
   const result = executeQuery(query, { first: 250 });
-  const products = result?.data?.products?.edges ?? [];
+  const products = result?.products?.edges ?? [];
 
   const lowStock = [];
   for (const { node: product } of products) {

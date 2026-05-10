@@ -26,7 +26,7 @@ const query = `
 async function main() {
   console.log(`\nFetching products from ${STORE}...\n`);
   const result = executeQuery(query, { first: 50 });
-  const products = result?.data?.products?.edges ?? [];
+  const products = result?.products?.edges ?? [];
 
   if (!products.length) {
     console.log('No products found.');
@@ -53,7 +53,7 @@ async function main() {
     );
   }
 
-  const hasNext = result?.data?.products?.pageInfo?.hasNextPage;
+  const hasNext = result?.products?.pageInfo?.hasNextPage;
   if (hasNext) {
     console.log('\n(More products available — re-run with a larger --first value or implement pagination)');
   }

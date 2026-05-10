@@ -22,7 +22,7 @@ const query = `
 async function main() {
   console.log(`\nFetching recent customers from ${STORE}...\n`);
   const result = executeQuery(query, { first: 50 });
-  const customers = result?.data?.customers?.edges ?? [];
+  const customers = result?.customers?.edges ?? [];
 
   if (!customers.length) {
     console.log('No customers found.');

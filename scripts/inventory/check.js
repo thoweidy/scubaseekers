@@ -44,7 +44,7 @@ async function main() {
   console.log(`\nFetching inventory from ${STORE}...\n`);
 
   const locResult = executeQuery(locationsQuery, {});
-  const locations = locResult?.data?.locations?.edges ?? [];
+  const locations = locResult?.locations?.edges ?? [];
 
   if (!locations.length) {
     console.log('No locations found.');
@@ -56,7 +56,7 @@ async function main() {
     console.log(`\n=== ${loc.name} ===`);
 
     const invResult = executeQuery(inventoryQuery, { locationId: loc.id, first: 250 });
-    const levels = invResult?.data?.location?.inventoryLevels?.edges ?? [];
+    const levels = invResult?.location?.inventoryLevels?.edges ?? [];
 
     if (!levels.length) {
       console.log('  (no inventory items)');
