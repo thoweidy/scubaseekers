@@ -18,17 +18,27 @@ const query = `
           }
         }
       }
-      pageInfo { hasNextPage }
+      pageInfo { hasNextPage endCursor }
     }
   }
 `;
 
 async function main() {
   console.log(`\nFetching products from ${STORE}...\n`);
-  const result = executeQuery(query, { first: 50 });
-  const products = result?.products?.edges ?? [];
 
-  if (!products.length) {
+  let allProducts = [];
+  let after = null;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    const result = await executeQuery(query, { first: 250, after });
+    const edges = result?.products?.edges ?? [];
+    allProducts = allProducts.concat(edges);
+    hasNextPage = result?.products?.pageInfo?.hasNextPage ?? false;
+    after = result?.products?.pageInfo?.endCursor ?? null;
+  }
+
+  if (!allProducts.length) {
     console.log('No products found.');
     return;
   }
@@ -36,7 +46,7 @@ async function main() {
   console.log(`${'Title'.padEnd(40)} ${'Status'.padEnd(10)} ${'Stock'.padEnd(8)} ${'Vendor'.padEnd(20)} ${'Type'.padEnd(20)} Price`);
   console.log('-'.repeat(120));
 
-  for (const { node: p } of products) {
+  for (const { node: p } of allProducts) {
     const minPrice = p.priceRangeV2.minVariantPrice;
     const maxPrice = p.priceRangeV2.maxVariantPrice;
     const priceStr = minPrice.amount === maxPrice.amount
@@ -53,11 +63,7 @@ async function main() {
     );
   }
 
-  const hasNext = result?.products?.pageInfo?.hasNextPage;
-  if (hasNext) {
-    console.log('\n(More products available — re-run with a larger --first value or implement pagination)');
-  }
-  console.log(`\nTotal shown: ${products.length}`);
+  console.log(`\nTotal products: ${allProducts.length}`);
 }
 
 main();

@@ -1,17 +1,15 @@
 import { executeQuery, STORE, LOW_STOCK_THRESHOLD } from '../lib/store.js';
 
 const query = `
-  query LowStockProducts($first: Int!) {
-    products(first: $first) {
+  query LowStockProducts($first: Int!, $after: String) {
+    products(first: $first, after: $after) {
       edges {
         node {
-          id
           title
           status
           variants(first: 100) {
             edges {
               node {
-                id
                 title
                 sku
                 inventoryQuantity
@@ -20,18 +18,27 @@ const query = `
           }
         }
       }
-      pageInfo { hasNextPage }
+      pageInfo { hasNextPage endCursor }
     }
   }
 `;
 
 async function main() {
-  console.log(`\nChecking low-stock products on ${STORE} (threshold: ${LOW_STOCK_THRESHOLD})...\n`);
-  const result = executeQuery(query, { first: 250 });
-  const products = result?.products?.edges ?? [];
+  console.log(`\nChecking low-stock products on ${STORE} (threshold ≤ ${LOW_STOCK_THRESHOLD})...\n`);
+
+  let allProducts = [];
+  let after = null;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    const result = await executeQuery(query, { first: 250, after });
+    allProducts = allProducts.concat(result?.products?.edges ?? []);
+    hasNextPage = result?.products?.pageInfo?.hasNextPage ?? false;
+    after = result?.products?.pageInfo?.endCursor ?? null;
+  }
 
   const lowStock = [];
-  for (const { node: product } of products) {
+  for (const { node: product } of allProducts) {
     for (const { node: variant } of product.variants.edges) {
       const qty = variant.inventoryQuantity ?? 0;
       if (qty <= LOW_STOCK_THRESHOLD) {

@@ -4,7 +4,6 @@
   "description": "Shopify store management scripts for scubaseekers",
   "type": "module",
   "scripts": {
-    "auth": "node scripts/auth.js",
     "products:list": "node scripts/products/list.js",
     "products:low-stock": "node scripts/products/low-stock.js",
     "orders:list": "node scripts/orders/list.js",

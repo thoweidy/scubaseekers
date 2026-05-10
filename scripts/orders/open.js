@@ -1,40 +1,30 @@
 import { executeQuery, STORE } from '../lib/store.js';
 
 const query = `
-  query OpenOrders($first: Int!) {
-    orders(first: $first, query: "fulfillment_status:unshipped financial_status:paid") {
+  query OpenOrders($first: Int!, $after: String) {
+    orders(first: $first, after: $after, query: "fulfillment_status:unshipped financial_status:paid") {
       edges {
         node {
           id
           name
           createdAt
           displayFulfillmentStatus
-          totalPriceSet {
-            shopMoney { amount currencyCode }
-          }
+          totalPriceSet { shopMoney { amount currencyCode } }
           customer { displayName email }
-          shippingAddress {
-            city
-            provinceCode
-            countryCode
-          }
+          shippingAddress { city provinceCode countryCode }
           lineItems(first: 5) {
-            edges {
-              node {
-                title
-                quantity
-              }
-            }
+            edges { node { title quantity } }
           }
         }
       }
+      pageInfo { hasNextPage endCursor }
     }
   }
 `;
 
 async function main() {
   console.log(`\nFetching open (paid + unshipped) orders from ${STORE}...\n`);
-  const result = executeQuery(query, { first: 50 });
+  const result = await executeQuery(query, { first: 50 });
   const orders = result?.orders?.edges ?? [];
 
   if (!orders.length) {
@@ -53,7 +43,7 @@ async function main() {
 
     console.log(`${o.name} | ${date} | ${total}`);
     console.log(`  Customer: ${customer}`);
-    console.log(`  Ship to: ${addr}`);
+    console.log(`  Ship to:  ${addr}`);
     console.log(`  Items:\n${items}`);
     console.log();
   }

@@ -1,4 +1,3 @@
-import { execSync } from 'child_process';
 import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 
@@ -19,29 +18,39 @@ if (existsSync(envPath)) {
 export const STORE = process.env.SHOPIFY_STORE_DOMAIN || 'scubaseekers.myshopify.com';
 export const LOW_STOCK_THRESHOLD = parseInt(process.env.LOW_STOCK_THRESHOLD || '5', 10);
 
-/**
- * Execute a Shopify Admin GraphQL query against the store.
- * @param {string} query  - GraphQL query or mutation string
- * @param {object} [variables] - Optional variables object
- * @param {boolean} [allowMutations] - Pass true for mutations
- */
-export function executeQuery(query, variables = {}, allowMutations = false) {
-  const varFlag = Object.keys(variables).length
-    ? `--variables '${JSON.stringify(variables)}'`
-    : '';
-  const mutationFlag = allowMutations ? '--allow-mutations' : '';
-  const cmd = `shopify store execute --store ${STORE} --json --query '${query.replace(/'/g, "'\\''")}' ${varFlag} ${mutationFlag}`.trim();
+const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
+const API_VERSION = '2025-04';
+const ENDPOINT = `https://${STORE}/admin/api/${API_VERSION}/graphql.json`;
 
-  try {
-    const output = execSync(cmd, { encoding: 'utf8' });
-    return JSON.parse(output);
-  } catch (err) {
-    const msg = err.stderr || err.stdout || err.message || '';
-    if (msg.includes('not authenticated') || msg.includes('auth')) {
-      console.error(`\nNot authenticated. Run:\n  npm run auth\n`);
-    } else {
-      console.error('Error executing query:', msg);
-    }
+/**
+ * Execute a Shopify Admin GraphQL query directly via the API.
+ */
+export async function executeQuery(query, variables = {}) {
+  if (!TOKEN) {
+    console.error('\nMissing SHOPIFY_ACCESS_TOKEN. Add it to your .env file.\n');
     process.exit(1);
   }
+
+  const res = await fetch(ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': TOKEN,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+
+  if (!res.ok) {
+    console.error(`API request failed: ${res.status} ${res.statusText}`);
+    process.exit(1);
+  }
+
+  const json = await res.json();
+
+  if (json.errors) {
+    console.error('GraphQL errors:', JSON.stringify(json.errors, null, 2));
+    process.exit(1);
+  }
+
+  return json.data;
 }

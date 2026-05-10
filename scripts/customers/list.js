@@ -1,8 +1,8 @@
 import { executeQuery, STORE } from '../lib/store.js';
 
 const query = `
-  query ListCustomers($first: Int!) {
-    customers(first: $first, sortKey: CREATED_AT, reverse: true) {
+  query ListCustomers($first: Int!, $after: String) {
+    customers(first: $first, after: $after, sortKey: CREATED_AT, reverse: true) {
       edges {
         node {
           id
@@ -15,13 +15,14 @@ const query = `
           tags
         }
       }
+      pageInfo { hasNextPage endCursor }
     }
   }
 `;
 
 async function main() {
   console.log(`\nFetching recent customers from ${STORE}...\n`);
-  const result = executeQuery(query, { first: 50 });
+  const result = await executeQuery(query, { first: 50 });
   const customers = result?.customers?.edges ?? [];
 
   if (!customers.length) {

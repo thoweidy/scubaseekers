@@ -1,8 +1,8 @@
 import { executeQuery, STORE } from '../lib/store.js';
 
 const query = `
-  query ListOrders($first: Int!) {
-    orders(first: $first, sortKey: CREATED_AT, reverse: true) {
+  query ListOrders($first: Int!, $after: String) {
+    orders(first: $first, after: $after, sortKey: CREATED_AT, reverse: true) {
       edges {
         node {
           id
@@ -10,19 +10,18 @@ const query = `
           displayFinancialStatus
           displayFulfillmentStatus
           createdAt
-          totalPriceSet {
-            shopMoney { amount currencyCode }
-          }
+          totalPriceSet { shopMoney { amount currencyCode } }
           customer { displayName email }
         }
       }
+      pageInfo { hasNextPage endCursor }
     }
   }
 `;
 
 async function main() {
   console.log(`\nFetching recent orders from ${STORE}...\n`);
-  const result = executeQuery(query, { first: 50 });
+  const result = await executeQuery(query, { first: 50 });
   const orders = result?.orders?.edges ?? [];
 
   if (!orders.length) {
