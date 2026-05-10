@@ -9,6 +9,7 @@ const SCOPES = [
   'read_inventory',
   'write_inventory',
   'read_customers',
+  'read_locations',
 ].join(',');
 
 console.log(`\nAuthenticating with store: ${STORE}\n`);
