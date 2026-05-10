@@ -30,7 +30,7 @@ export function executeQuery(query, variables = {}, allowMutations = false) {
     ? `--variables '${JSON.stringify(variables)}'`
     : '';
   const mutationFlag = allowMutations ? '--allow-mutations' : '';
-  const cmd = `shopify store execute --store ${STORE} --query '${query.replace(/'/g, "'\\''")}' ${varFlag} ${mutationFlag}`.trim();
+  const cmd = `shopify store execute --store ${STORE} --json --query '${query.replace(/'/g, "'\\''")}' ${varFlag} ${mutationFlag}`.trim();
 
   try {
     const output = execSync(cmd, { encoding: 'utf8' });
