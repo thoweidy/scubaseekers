@@ -80,29 +80,46 @@ export default function NewOrderPage() {
     if (!cart.length) { setError('Add at least one product.'); return; }
     setSubmitting(true);
 
-    const res = await fetch('/api/orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        customerEmail,
-        customerName,
-        note,
-        lineItems: cart.map(i => ({ variantId: i.variantId, quantity: i.quantity })),
-      }),
-    });
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerEmail,
+          customerName,
+          note,
+          lineItems: cart.map(i => ({ variantId: i.variantId, quantity: i.quantity })),
+        }),
+      });
 
-    const data = await res.json();
-    setSubmitting(false);
+      const text = await res.text();
+      let data: { error?: string; ok?: boolean; orderName?: string; invoiceUrl?: string; total?: { amount: string; currencyCode: string }; invoiceSent?: boolean; sentTo?: string; warning?: string };
+      try {
+        data = JSON.parse(text);
+      } catch {
+        setSubmitting(false);
+        setError(`Server returned an invalid response (${res.status}). ${text.substring(0, 200)}`);
+        return;
+      }
 
-    if (!res.ok) { setError(data.error ?? 'Failed to create order.'); return; }
+      setSubmitting(false);
 
-    setResult(data);
-    setCart([]);
-    setCustomerEmail('');
-    setCustomerName('');
-    setNote('');
-    setSearchQuery('');
-    setProducts([]);
+      if (!res.ok) {
+        setError(data.error ?? `Failed to create order (status ${res.status}).`);
+        return;
+      }
+
+      setResult(data as Parameters<typeof setResult>[0]);
+      setCart([]);
+      setCustomerEmail('');
+      setCustomerName('');
+      setNote('');
+      setSearchQuery('');
+      setProducts([]);
+    } catch (err) {
+      setSubmitting(false);
+      setError(`Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
   }
 
   if (result) {

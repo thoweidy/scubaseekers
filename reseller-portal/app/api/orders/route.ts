@@ -18,7 +18,7 @@ const CREATE_DRAFT_ORDER = `
 `;
 
 const SEND_INVOICE = `
-  mutation SendInvoice($id: ID!, $email: DraftOrderInvoiceEmailInput) {
+  mutation SendInvoice($id: ID!, $email: EmailInput) {
     draftOrderInvoiceSend(id: $id, email: $email) {
       draftOrder { id }
       userErrors { field message }
@@ -46,78 +46,79 @@ const LIST_ORDERS = `
 `;
 
 export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session.customerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  try {
+    const session = await getSession();
+    if (!session.customerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { customerName, customerEmail, lineItems, note } = await req.json();
+    const { customerEmail, lineItems, note } = await req.json();
 
-  if (!customerEmail || !lineItems?.length) {
-    return NextResponse.json({ error: 'Customer email and at least one item are required.' }, { status: 400 });
-  }
+    if (!customerEmail || !lineItems?.length) {
+      return NextResponse.json({ error: 'Customer email and at least one item are required.' }, { status: 400 });
+    }
 
-  // Build the draft order — full retail price, tagged with reseller
-  const resellerId = session.customerId.replace('gid://shopify/Customer/', '');
-  const resellerTag = `reseller:${resellerId}`;
-  const commissionTag = `commission:${session.discountRate}pct`;
+    const resellerId    = session.customerId.replace('gid://shopify/Customer/', '');
+    const resellerTag   = `reseller:${resellerId}`;
+    const commissionTag = `commission:${session.discountRate}pct`;
 
-  const draftInput = {
-    lineItems: lineItems.map((item: { variantId: string; quantity: number }) => ({
-      variantId: item.variantId,
-      quantity: item.quantity,
-    })),
-    shippingAddress: undefined,
-    tags: [resellerTag, commissionTag, 'reseller-order'],
-    note: note ? `[Reseller: ${session.email}] ${note}` : `[Reseller: ${session.email}]`,
-    // Do NOT apply any discount — customer pays full retail price
-    // Reseller gets paid commission separately
-  };
-
-  const draftData = await shopify<{
-    draftOrderCreate: {
-      draftOrder: { id: string; name: string; invoiceUrl: string; totalPriceSet: { shopMoney: { amount: string; currencyCode: string } } } | null;
-      userErrors: { field: string[]; message: string }[];
+    const draftInput = {
+      lineItems: lineItems.map((item: { variantId: string; quantity: number }) => ({
+        variantId: item.variantId,
+        quantity: item.quantity,
+      })),
+      tags: [resellerTag, commissionTag, 'reseller-order'],
+      note: note ? `[Reseller: ${session.email}] ${note}` : `[Reseller: ${session.email}]`,
+      email: customerEmail,
     };
-  }>(CREATE_DRAFT_ORDER, { input: draftInput });
 
-  if (draftData.draftOrderCreate.userErrors.length) {
-    return NextResponse.json({ error: draftData.draftOrderCreate.userErrors[0].message }, { status: 400 });
-  }
+    const draftData = await shopify<{
+      draftOrderCreate: {
+        draftOrder: { id: string; name: string; invoiceUrl: string; totalPriceSet: { shopMoney: { amount: string; currencyCode: string } } } | null;
+        userErrors: { field: string[]; message: string }[];
+      };
+    }>(CREATE_DRAFT_ORDER, { input: draftInput });
 
-  const draft = draftData.draftOrderCreate.draftOrder!;
+    if (draftData.draftOrderCreate.userErrors.length) {
+      const err = draftData.draftOrderCreate.userErrors[0];
+      return NextResponse.json({ error: `${err.field?.join('.') ?? ''}: ${err.message}` }, { status: 400 });
+    }
 
-  // Send invoice email to the end customer
-  const invoiceData = await shopify<{
-    draftOrderInvoiceSend: { userErrors: { message: string }[] };
-  }>(SEND_INVOICE, {
-    id: draft.id,
-    email: {
-      to: customerEmail,
-      ...(customerName && { subject: `Your order from ${process.env.NEXT_PUBLIC_STORE_NAME ?? 'Scuba Seekers'}` }),
-    },
-  });
+    const draft = draftData.draftOrderCreate.draftOrder!;
 
-  if (invoiceData.draftOrderInvoiceSend.userErrors.length) {
-    // Invoice send failed but order was created — return the URL as fallback
+    let invoiceSent = true;
+    let warning: string | undefined;
+    try {
+      const invoiceData = await shopify<{
+        draftOrderInvoiceSend: { userErrors: { message: string }[] };
+      }>(SEND_INVOICE, {
+        id: draft.id,
+        email: { to: customerEmail },
+      });
+
+      if (invoiceData.draftOrderInvoiceSend.userErrors.length) {
+        invoiceSent = false;
+        warning = `Invoice email failed: ${invoiceData.draftOrderInvoiceSend.userErrors[0].message}. Share the link manually.`;
+      }
+    } catch (e) {
+      invoiceSent = false;
+      warning = `Invoice email failed: ${e instanceof Error ? e.message : 'unknown'}. Share the link manually.`;
+    }
+
     return NextResponse.json({
       ok: true,
-      orderId: draft.id,
+      orderId:   draft.id,
       orderName: draft.name,
       invoiceUrl: draft.invoiceUrl,
-      total: draft.totalPriceSet.shopMoney,
-      invoiceSent: false,
-      warning: 'Invoice email could not be sent. Share the link manually.',
+      total:      draft.totalPriceSet.shopMoney,
+      invoiceSent,
+      sentTo: invoiceSent ? customerEmail : undefined,
+      warning,
     });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Unexpected server error.' },
+      { status: 500 },
+    );
   }
-
-  return NextResponse.json({
-    ok: true,
-    orderId: draft.id,
-    orderName: draft.name,
-    invoiceUrl: draft.invoiceUrl,
-    total: draft.totalPriceSet.shopMoney,
-    invoiceSent: true,
-    sentTo: customerEmail,
-  });
 }
 
 export async function GET(req: NextRequest) {
