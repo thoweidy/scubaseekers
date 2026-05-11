@@ -9,8 +9,8 @@ const query = `
           displayName
           email
           phone
-          ordersCount
-          totalSpentV2 { amount currencyCode }
+          numberOfOrders
+          amountSpent { amount currencyCode }
           createdAt
           tags
         }
@@ -34,14 +34,14 @@ async function main() {
   console.log('-'.repeat(110));
 
   for (const { node: c } of customers) {
-    const spent = `${c.totalSpentV2.currencyCode} ${parseFloat(c.totalSpentV2.amount).toFixed(2)}`;
+    const spent = c.amountSpent ? `${c.amountSpent.currencyCode} ${parseFloat(c.amountSpent.amount).toFixed(2)}` : '—';
     const since = c.createdAt.substring(0, 10);
     const tags = (c.tags || []).join(', ');
 
     console.log(
       (c.displayName || '').substring(0, 27).padEnd(28),
       (c.email || '').substring(0, 31).padEnd(32),
-      String(c.ordersCount || 0).padEnd(8),
+      String(c.numberOfOrders || 0).padEnd(8),
       spent.padEnd(16),
       since.padEnd(12),
       tags,

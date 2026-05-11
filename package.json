@@ -9,7 +9,10 @@
     "orders:list": "node scripts/orders/list.js",
     "orders:open": "node scripts/orders/open.js",
     "inventory:check": "node scripts/inventory/check.js",
-    "customers:list": "node scripts/customers/list.js"
+    "customers:list": "node scripts/customers/list.js",
+    "resellers:list": "node scripts/resellers/list.js",
+    "resellers:create": "node scripts/resellers/create.js",
+    "resellers:update": "node scripts/resellers/update.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5"
