@@ -26,7 +26,7 @@ const SEND_INVOICE = `
   }
 `;
 
-/* ── List draft orders for this reseller ─────────────────────── */
+/* ── List orders for this reseller ────────────────────────────── */
 const LIST_ORDERS = `
   query ResellerOrders($query: String!, $first: Int!) {
     orders(first: $first, query: $query, sortKey: CREATED_AT, reverse: true) {
@@ -37,6 +37,24 @@ const LIST_ORDERS = `
           createdAt
           displayFinancialStatus
           displayFulfillmentStatus
+          totalPriceSet { shopMoney { amount currencyCode } }
+          tags
+        }
+      }
+    }
+  }
+`;
+
+const LIST_DRAFTS = `
+  query ResellerDrafts($query: String!, $first: Int!) {
+    draftOrders(first: $first, query: $query, sortKey: CREATED_AT, reverse: true) {
+      edges {
+        node {
+          id
+          name
+          createdAt
+          status
+          invoiceUrl
           totalPriceSet { shopMoney { amount currencyCode } }
           tags
         }
@@ -121,15 +139,27 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET(req: NextRequest) {
-  const session = await getSession();
-  if (!session.customerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET() {
+  try {
+    const session = await getSession();
+    if (!session.customerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const resellerId = session.customerId.replace('gid://shopify/Customer/', '');
-  const data = await shopify<{ orders: { edges: unknown[] } }>(
-    LIST_ORDERS,
-    { query: `tag:reseller:${resellerId}`, first: 50 },
-  );
+    const resellerId = session.customerId.replace('gid://shopify/Customer/', '');
+    const tagQuery   = `tag:reseller:${resellerId}`;
 
-  return NextResponse.json({ orders: data.orders.edges });
+    const [ordersData, draftsData] = await Promise.all([
+      shopify<{ orders: { edges: { node: Record<string, unknown> }[] } }>(LIST_ORDERS, { query: tagQuery, first: 50 }),
+      shopify<{ draftOrders: { edges: { node: Record<string, unknown> }[] } }>(LIST_DRAFTS, { query: tagQuery, first: 50 }),
+    ]);
+
+    return NextResponse.json({
+      orders: ordersData.orders.edges,
+      drafts: draftsData.draftOrders.edges,
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Failed to load orders.' },
+      { status: 500 },
+    );
+  }
 }

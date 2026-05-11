@@ -16,8 +16,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             <span className="font-semibold text-sm text-gray-900">Scuba Seekers – Reseller Portal</span>
           </div>
           <nav className="flex items-center gap-4">
-            <a href="/portal"        className="text-sm text-gray-600 hover:text-gray-900">New Order</a>
-            <a href="/portal/orders" className="text-sm text-gray-600 hover:text-gray-900">My Orders</a>
+            <a href="/portal"         className="text-sm text-gray-600 hover:text-gray-900">New Order</a>
+            <a href="/portal/orders"  className="text-sm text-gray-600 hover:text-gray-900">My Orders</a>
+            <a href="/portal/profile" className="text-sm text-gray-600 hover:text-gray-900">Profile</a>
             <LogoutButton />
           </nav>
         </div>
