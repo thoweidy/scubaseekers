@@ -85,26 +85,36 @@ async function main() {
   const customer = customerResult.customerCreate.customer;
   console.log(`✓ Customer created: ${customer.id}`);
 
-  // 2. Set the discount rate metafield
+  // 2. Set metafields: discount rate + access code
+  const accessCode = makeCode(first, last, discount);
   const metafieldResult = await executeQuery(SET_METAFIELD, {
-    metafields: [{
-      ownerId: customer.id,
-      namespace: 'reseller',
-      key: 'discount_rate',
-      type: 'number_decimal',
-      value: String(discount),
-    }],
+    metafields: [
+      {
+        ownerId: customer.id,
+        namespace: 'reseller',
+        key: 'discount_rate',
+        type: 'number_decimal',
+        value: String(discount),
+      },
+      {
+        ownerId: customer.id,
+        namespace: 'reseller',
+        key: 'access_code',
+        type: 'single_line_text_field',
+        value: accessCode,
+      },
+    ],
   });
 
   if (metafieldResult.metafieldsSet.userErrors.length) {
-    console.error('Failed to set metafield:', metafieldResult.metafieldsSet.userErrors);
+    console.error('Failed to set metafields:', metafieldResult.metafieldsSet.userErrors);
     process.exit(1);
   }
 
   console.log(`✓ Discount rate set: ${discount}%`);
 
-  // 3. Create a customer-specific discount code
-  const code = makeCode(first, last, discount);
+  // 3. Create a customer-specific discount code (same as access code)
+  const code = accessCode;
   const discountResult = await executeQuery(CREATE_DISCOUNT, {
     basicCodeDiscount: {
       title: `Reseller – ${first} ${last} (${discount}%)`,

@@ -12,7 +12,8 @@
     "customers:list": "node scripts/customers/list.js",
     "resellers:list": "node scripts/resellers/list.js",
     "resellers:create": "node scripts/resellers/create.js",
-    "resellers:update": "node scripts/resellers/update.js"
+    "resellers:update": "node scripts/resellers/update.js",
+    "resellers:commissions": "node scripts/resellers/commissions.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5"
